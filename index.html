@@ -35,8 +35,19 @@ body.light .hex{background:#f5c8f0;}
 body.light .hex:hover{background:rgba(147,51,234,0.08);}
 body.light .tt{background:#fff5fd;}
 body.light .modal{background:#fff5fd;}
-/* theme toggle button */
-/* theme-btn defined below */
+/* ── COLOR PANEL ── */
+.cpanel{position:fixed;bottom:58px;left:14px;z-index:101;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;width:240px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;}
+.cpanel.on{display:block;}
+.cpanel-head{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.cpanel-reset{font-size:9px;color:var(--accent2);cursor:pointer;font-weight:400;}
+.cpanel-reset:hover{text-decoration:underline;}
+.cpanel-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.cpanel-lbl{font-size:10px;color:var(--text2);}
+.cpanel input[type=color]{width:28px;height:22px;border:1px solid var(--border2);border-radius:3px;background:none;cursor:pointer;padding:0;}
+.cpanel-section{font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;margin:8px 0 4px;border-top:1px solid var(--border);padding-top:6px;}
+.cpanel-presets{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;}
+.cpanel-preset{font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;}
+.cpanel-preset:hover{border-color:var(--accent);color:var(--text);}
 /* ── LIGHT (PINK) MODE ── */
 body.light{
   --bg:#fdf0f8;--bg2:#fff5fb;--bg3:#fce7f6;--bg4:#f5d0ee;
@@ -312,6 +323,7 @@ body.light .sel-tag{background:rgba(147,51,234,.12);border-color:rgba(147,51,234
   <div class="topbar">
     <div><div class="logo"><span class="logo-tft">TFT</span><span class="logo-ontos">ontos</span></div><div class="logo-sub">Manon &amp; Seb</div></div>
     <div class="topbar-space"></div>
+    <span id="syncStatus" style="font-size:14px;cursor:default;margin-right:6px;" title="Cloud sync">☁️</span>
     <button class="btn-import" onclick="openImport()">+ Import Comp</button>
   </div>
 
@@ -391,8 +403,82 @@ const TRAITS={
   'challenger':  {innate:'Team +10% Attack Speed. Challengers dash to new target on kill and gain +50% AS bonus for 2.5s.',levels:[2,4,6],effects:{2:'Team +10% AS + dash on kill',4:'Increased AS bonus on kill',6:'Maximum AS bonus'}},
 };
 const BADGES=['BRONZE','SILVER','GOLD','ORANGE'];
-const CDN='https://cdn.mobalytics.gg/assets/tft/images';
-const ICONS='https://cdn.mobalytics.gg/assets/common/icons';
+
+// ── ASSET HOST ────────────────────────────────────────────────────────────────
+// Images are served from a GitHub repo that doesn't block hotlinking.
+// After running download_tft_assets.py and pushing, set this to your repo:
+//   https://raw.githubusercontent.com/YOUR_USERNAME/tft-assets/main
+// Until then it falls back to Mobalytics (works locally, blocked on GitHub Pages).
+const GITHUB_ASSETS = 'https://raw.githubusercontent.com/01sebakan/tft-assets/main';
+const _USING_GH = GITHUB_ASSETS !== 'REPLACE_WITH_YOUR_GITHUB_ASSETS_URL';
+
+// These keep all existing URL-building code working unchanged:
+const CDN   = _USING_GH ? GITHUB_ASSETS + '/_mob' : 'https://cdn.mobalytics.gg/assets/tft/images';
+const ICONS = 'https://cdn.mobalytics.gg/assets/common/icons'; // SVG icons — not blocked
+
+// Champion/item image helpers — resolve from GitHub assets when available
+function champUrl(slug){ return _USING_GH ? `${GITHUB_ASSETS}/champions/${slug}.png` : `${CDN}/champions/icons/set17/${slug}.png?v=5`; }
+function itemUrl(slug){  return _USING_GH ? `${GITHUB_ASSETS}/items/${slug}.png`     : `${CDN}/game-items/set17/${slug}.png?v=5`; }
+function badgeUrl(b){    return _USING_GH ? `${GITHUB_ASSETS}/badges/${b}.png`       : `${CDN}/synergies-badges/${b}.png`; }
+
+// ── CLOUD SYNC (JSONBin) ───────────────────────────────────────────────────────
+const JSONBIN_ID  = '69ea0ad9aaba8821972c96f1';
+const JSONBIN_KEY = '$2a$10$nUrvlLkcuFP8dc8bx3erBeS/iX3/Lv6Q6so.FCUcw7cVf3hRilB/a';
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+let _syncing = false;
+
+function setSyncStatus(s,msg){
+  const el=document.getElementById('syncStatus');
+  if(!el)return;
+  const icons={idle:'☁️',saving:'⏳',loading:'⏳',error:'⚠️',ok:'✅'};
+  el.textContent=icons[s]||'☁️'; el.title=msg||s;
+}
+async function cloudSave(){
+  if(_syncing)return; _syncing=true; setSyncStatus('saving','Saving…');
+  try{
+    await fetch(JSONBIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY,'X-Bin-Versioning':'false'},body:JSON.stringify({comps})});
+    setSyncStatus('ok','Saved ✓'); setTimeout(()=>setSyncStatus('idle'),2000);
+  }catch(e){setSyncStatus('error','Save failed');}
+  _syncing=false;
+}
+async function cloudLoad(){
+  setSyncStatus('loading','Loading…');
+  try{
+    const r=await fetch(JSONBIN_URL,{headers:{'X-Master-Key':JSONBIN_KEY}});
+    const j=await r.json();
+    if(j.record&&Array.isArray(j.record.comps)&&j.record.comps.length){
+      comps=j.record.comps;
+      comps.forEach(c=>{if(!c._boards)c._boards={early:{hexes:{},notes:''},mid:{hexes:{},notes:''},late:{hexes:{},notes:''}};});
+      try{localStorage.setItem('tft17',JSON.stringify(comps));}catch(e){}
+      renderSidebar();
+      if(comps.length){ai=0;renderComp(comps[0]);}
+      setSyncStatus('ok','Loaded ✓'); setTimeout(()=>setSyncStatus('idle'),2500);
+    }else{setSyncStatus('idle','No cloud data');}
+  }catch(e){setSyncStatus('error','Load failed');}
+}
+
+// ── COLOR PANEL ───────────────────────────────────────────────────────────────
+const COLOR_VARS=[
+  ['--bg','cp-bg'],['--bg2','cp-bg2'],['--bg3','cp-bg3'],['--bg4','cp-bg4'],
+  ['--text','cp-text'],['--text2','cp-text2'],['--text3','cp-text3'],
+  ['--accent','cp-accent'],['--accent2','cp-accent2'],['--gold2','cp-gold2'],
+  ['--tier-s','cp-tier-s'],['--tier-a','cp-tier-a'],['--tier-b','cp-tier-b'],
+];
+const PRESETS={
+  'Dark':{'--bg':'#0d1117','--bg2':'#161b27','--bg3':'#1c2333','--bg4':'#232d40','--text':'#e2e8f0','--text2':'#94a3b8','--text3':'#475569','--accent':'#3b82f6','--accent2':'#60a5fa','--gold2':'#fbbf24','--tier-s':'#f97316','--tier-a':'#a855f7','--tier-b':'#3b82f6'},
+  'Pink':{'--bg':'#fdf0f8','--bg2':'#fff5fb','--bg3':'#fce7f6','--bg4':'#f5d0ee','--text':'#3b0764','--text2':'#6b21a8','--text3':'#9333ea','--accent':'#a855f7','--accent2':'#c084fc','--gold2':'#92400e','--tier-s':'#be185d','--tier-a':'#7c3aed','--tier-b':'#2563eb'},
+  'Slate':{'--bg':'#0f172a','--bg2':'#1e293b','--bg3':'#334155','--bg4':'#475569','--text':'#f1f5f9','--text2':'#94a3b8','--text3':'#64748b','--accent':'#38bdf8','--accent2':'#7dd3fc','--gold2':'#fcd34d','--tier-s':'#f87171','--tier-a':'#c084fc','--tier-b':'#38bdf8'},
+  'Forest':{'--bg':'#0a130d','--bg2':'#111f15','--bg3':'#1a2e1e','--bg4':'#243d28','--text':'#d1fae5','--text2':'#6ee7b7','--text3':'#34d399','--accent':'#10b981','--accent2':'#34d399','--gold2':'#fbbf24','--tier-s':'#f97316','--tier-a':'#a855f7','--tier-b':'#10b981'},
+};
+function applyColor(v,val){document.documentElement.style.setProperty(v,val);saveColorPrefs();}
+function saveColorPrefs(){const p={};COLOR_VARS.forEach(([v])=>{const val=getComputedStyle(document.documentElement).getPropertyValue(v).trim();if(val)p[v]=val;});try{localStorage.setItem('tft17_colors',JSON.stringify(p));}catch(e){}}
+function loadColorPrefs(){try{const s=localStorage.getItem('tft17_colors');if(!s)return;const p=JSON.parse(s);Object.entries(p).forEach(([v,val])=>document.documentElement.style.setProperty(v,val));syncColorInputs();}catch(e){}}
+function toHex(raw){raw=(raw||'').trim();if(raw.startsWith('#')&&raw.length===7)return raw;if(raw.startsWith('#')&&raw.length===4)return'#'+raw[1]+raw[1]+raw[2]+raw[2]+raw[3]+raw[3];const m=raw.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);if(m)return'#'+[m[1],m[2],m[3]].map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');return'#000000';}
+function syncColorInputs(){COLOR_VARS.forEach(([v,id])=>{const el=document.getElementById(id);if(!el)return;const raw=getComputedStyle(document.documentElement).getPropertyValue(v).trim();if(raw)el.value=toHex(raw);});}
+function applyPreset(name){const p=PRESETS[name];if(!p)return;Object.entries(p).forEach(([v,val])=>document.documentElement.style.setProperty(v,val));saveColorPrefs();syncColorInputs();}
+function resetColors(){applyPreset('Dark');}
+function toggleColorPanel(){const p=document.getElementById('colorPanel');p.classList.toggle('on');if(p.classList.contains('on')){buildPresetBtns();syncColorInputs();}}
+function buildPresetBtns(){const el=document.getElementById('presetBtns');if(!el||el.children.length)return;Object.keys(PRESETS).forEach(name=>{const b=document.createElement('button');b.className='cpanel-preset';b.textContent=name;b.onclick=()=>applyPreset(name);el.appendChild(b);});}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let comps=[],ai=null,pPhase=null,pHex=null;
@@ -451,8 +537,9 @@ function renderComp(d){
   // champs with stars
   const champs=(d.champions||[]).map(c=>{
     const s=c.stars?`<div class="stars">${'<span class="star">★</span>'.repeat(c.stars)}</div>`:'';
-    return `<div class="cc" data-tt="champ" data-name="${c.name}" data-img="${c.imgUrl}">
-      <div class="ci-wrap"><img class="ci" src="${c.imgUrl}" onerror="this.style.opacity=.4"/>${s}</div>
+    const img=champUrl(c.slug);
+    return `<div class="cc" data-tt="champ" data-name="${c.name}" data-img="${img}">
+      <div class="ci-wrap"><img class="ci" src="${img}" onerror="this.style.opacity=.4"/>${s}</div>
       <div class="cn">${c.name}</div>
       <div class="ct">${(c.traits||[]).map(t=>`<img class="cti" src="${ICONS}/tft-synergies-set17/24-${t}.svg?v=5" onerror="this.style.display='none'"/>`).join('')}</div>
     </div>`;
@@ -461,29 +548,35 @@ function renderComp(d){
   // synergies compact
   const syns=(d.synergies||[]).map(s=>`
     <div class="syn-wrap" data-tt="trait" data-name="${s.name}" data-slug="${s.slug}" data-count="${s.count}" data-badge="${s.badge}">
-      <img class="syn-badge" src="${CDN}/synergies-badges/${(s.badge||'BRONZE').toUpperCase()}.png" onerror="this.style.opacity=.3"/>
+      <img class="syn-badge" src="${badgeUrl((s.badge||'BRONZE').toUpperCase())}" onerror="this.style.opacity=.3"/>
       <img class="syn-icon" src="${ICONS}/tft-synergies-set17/24-${s.slug}.svg?v=5" onerror="this.style.opacity=.3"/>
       <span class="syn-cnt">${s.count}</span>
     </div>`).join('');
 
   // carries (with stars on champ icon)
-  const carries=(d.carries||[]).map(c=>`
+  const carries=(d.carries||[]).map(c=>{
+    const cImg=champUrl(c.slug);
+    return `
     <div class="carry-row">
       <div class="carry-champ">
         <div class="ci-wrap" style="display:inline-block;position:relative;">
-          <img src="${c.imgUrl}" style="width:36px;height:36px;border-radius:5px;border:1px solid var(--border2);display:block;" onerror="this.style.opacity=.4"/>
+          <img src="${cImg}" style="width:36px;height:36px;border-radius:5px;border:1px solid var(--border2);display:block;" onerror="this.style.opacity=.4"/>
           ${c.stars?`<div class="stars">${'<span class=\"star\">★</span>'.repeat(c.stars)}</div>`:''}
         </div>
         <div class="carry-cname">${c.name}</div>
       </div>
       <div class="carry-items">
-        ${(c.items||[]).map(it=>`
-          <div class="citem" data-tt="item" data-name="${it.name}" data-img="${it.imgUrl}">
-            <img class="ci-img" src="${it.imgUrl}" onerror="this.style.opacity=.4"/>
-            <div class="citem-name">${it.name}${(it.components||[]).length?`<div class="citem-comps">${it.components.map(x=>`<img class="comp-icon" src="${CDN}/game-items/set17/${x}.png?v=5" onerror="this.style.opacity=.3"/>`).join('')}</div>`:''}</div>
-          </div>`).join('')}
+        ${(c.items||[]).map(it=>{
+          const iImg=itemUrl(it.slug);
+          return `
+          <div class="citem" data-tt="item" data-name="${it.name}" data-img="${iImg}">
+            <img class="ci-img" src="${iImg}" onerror="this.style.opacity=.4"/>
+            <div class="citem-name">${it.name}${(it.components||[]).length?`<div class="citem-comps">${it.components.map(x=>`<img class="comp-icon" src="${itemUrl(x)}" onerror="this.style.opacity=.3"/>`).join('')}</div>`:''}</div>
+          </div>`;
+        }).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   // augments
   const augs=['tier1','tier2','tier3'].map((t,i)=>`
@@ -498,11 +591,13 @@ function renderComp(d){
     </div>`).join('');
 
   // carousel
-  const car=(d.carousel||[]).map((slug,i)=>`
-    <div class="car-item" data-tt="item" data-name="${slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}" data-img="${CDN}/game-items/set17/${slug}.png?v=5">
-      <img src="${CDN}/game-items/set17/${slug}.png?v=5" onerror="this.style.opacity=.4"/>
+  const car=(d.carousel||[]).map((slug,i)=>{
+    const iImg=itemUrl(slug);
+    return `<div class="car-item" data-tt="item" data-name="${slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}" data-img="${iImg}">
+      <img src="${iImg}" onerror="this.style.opacity=.4"/>
     </div>
-    ${i<d.carousel.length-1?'<span class="car-arr">›</span>':''}`).join('');
+    ${i<d.carousel.length-1?'<span class="car-arr">›</span>':''}`;
+  }).join('');
 
   // levels
   const lvls=(d.levels||[]).map((l,i)=>`
@@ -595,13 +690,13 @@ function renderComp(d){
 function planHTML(plan){
   if(!plan)return'';
   return`${(plan.traits||[]).length?`<div class="plan-traits">${plan.traits.map(t=>`<div class="ptb"><img src="${ICONS}/tft-synergies-set17/24-${t.slug}.svg?v=5" onerror="this.style.display='none'"/><span>${t.name||t.slug}</span><span class="ptc"> ${t.count}</span></div>`).join('')}</div>`:''}
-${(plan.units||[]).length?`<div class="plan-units">${plan.units.map(u=>`<div class="pu"><img src="${CDN}/champions/icons/set17/${u}.png?v=5" onerror="this.style.opacity=.4"/><div class="pu-name">${u.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div></div>`).join('')}</div>`:''}
+${(plan.units||[]).length?`<div class="plan-units">${plan.units.map(u=>`<div class="pu"><img src="${champUrl(u)}" onerror="this.style.opacity=.4"/><div class="pu-name">${u.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div></div>`).join('')}</div>`:''}
 ${(plan.tips||[]).length?`<div class="plan-tips">${plan.tips.map(t=>`<div class="ti">${t}</div>`).join('')}</div>`:''}`;
 }
 
 function lateHTML(d){
   const syns=(d.synergies||[]).map(s=>`<div class="ptb"><img src="${ICONS}/tft-synergies-set17/24-${s.slug}.svg?v=5" onerror="this.style.display='none'"/><span>${s.name}</span><span class="ptc"> ${s.count}</span></div>`).join('');
-  const units=(d.champions||[]).map(c=>`<div class="pu"><img src="${c.imgUrl}" onerror="this.style.opacity=.4"/><div class="pu-name">${c.name}</div></div>`).join('');
+  const units=(d.champions||[]).map(c=>`<div class="pu"><img src="${champUrl(c.slug)}" onerror="this.style.opacity=.4"/><div class="pu-name">${c.name}</div></div>`).join('');
   return`${syns?`<div class="plan-traits">${syns}</div>`:''}${units?`<div class="plan-units">${units}</div>`:''}`;
 }
 
@@ -632,7 +727,7 @@ function initBoard(phase,d){
     for(let c=0;c<r.n;c++){
       const i=idx++;const hex=document.createElement('div');hex.className='hex';hex.dataset.idx=i;
       const saved=d._boards&&d._boards[phase]&&d._boards[phase].hexes[i];
-      if(saved){hex.className='hex filled';hex.innerHTML=`<img src="${saved.imgUrl}" alt="${saved.name}"/><div class="hlabel">${saved.name.split(' ')[0]}</div><div class="hrem" onclick="remHex(event,'${phase}',${i})">✕</div>`;}
+      if(saved){hex.className='hex filled';hex.innerHTML=`<img src="${champUrl(saved.slug||saved.name)}" alt="${saved.name}"/><div class="hlabel">${saved.name.split(' ')[0]}</div><div class="hrem" onclick="remHex(event,'${phase}',${i})">✕</div>`;}
       else{hex.textContent='+';hex.addEventListener('click',()=>onHex(phase,i));}
       row.appendChild(hex);
     }
@@ -653,7 +748,7 @@ function getPool(phase){
   const bySlug={};(d.champions||[]).forEach(c=>{bySlug[c.slug]=c;});
   return units.map(u=>{
     const slug=typeof u==='string'?u:u.slug;
-    return bySlug[slug]||{slug,name:slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),imgUrl:`${CDN}/champions/icons/set17/${slug}.png?v=5`,traits:[]};
+    return bySlug[slug]||{slug,name:slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),traits:[]};
   });
 }
 function openPicker(){
@@ -663,11 +758,13 @@ function openPicker(){
   renderPGrid(getPool(pPhase));
 }
 function renderPGrid(champs){
-  document.getElementById('pickerGrid').innerHTML=champs.map(c=>`
-    <div class="pc" onclick="placeChamp('${c.slug}','${c.name.replace(/'/g,"\\'")}','${c.imgUrl}')">
-      <img src="${c.imgUrl}" onerror="this.style.opacity=.4"/>
+  document.getElementById('pickerGrid').innerHTML=champs.map(c=>{
+    const img=champUrl(c.slug);
+    return `<div class="pc" onclick="placeChamp('${c.slug}','${c.name.replace(/'/g,"\\'")}','${img}')">
+      <img src="${img}" onerror="this.style.opacity=.4"/>
       <div class="pc-n">${c.name}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function filterPicker(){
   if(ai===null)return;
@@ -714,7 +811,7 @@ function attachTT(){
           html+=info.levels.map((n,i)=>{
             const isCurr=n===activeN,isOn=count>=n,bn=BADGES[Math.min(i,BADGES.length-1)];
             return`<div class="tt-lv${isCurr?' on':''}">
-              <img class="tt-badge" src="${CDN}/synergies-badges/${bn}.png" onerror="this.style.opacity=.3"/>
+              <img class="tt-badge" src="${badgeUrl(bn)}" onerror="this.style.opacity=.3"/>
               <span class="tt-num" style="color:${isOn?'var(--gold2)':'var(--text3)'}">${n}</span>
               <div style="flex:1;font-size:9px;color:${isOn?'var(--text)':'var(--text3)'};line-height:1.4;">${effects[n]||''}</div>
               ${isCurr?'<span class="tt-tag">ACTIVE</span>':''}
@@ -824,7 +921,7 @@ function renderRoster(q){
   const filtered = q ? ROSTER.filter(ch=>ch.n.toLowerCase().includes(q)) : ROSTER;
   grid.innerHTML = filtered.map(ch=>{
     const sel = selectedChamps.has(ch.s);
-    const img = `${CDN}/champions/icons/set17/${ch.s}.png?v=5`;
+    const img = champUrl(ch.s);
     return `<div class="cpc${sel?' sel':''}" onclick="toggleChamp('${ch.s}')" title="${ch.n}">
       <img src="${img}" onerror="this.style.opacity=.3"/>
       <div class="cpc-cost" style="color:${COST_COLORS[ch.c]||'#fff'}">${ch.c}</div>
@@ -848,7 +945,7 @@ function renderSelChamps(){
   if(!selectedChamps.size){ el.innerHTML='<span style="font-size:10px;color:var(--text3);">No champions selected yet</span>'; return; }
   el.innerHTML=[...selectedChamps].map(s=>{
     const ch = ROSTER.find(r=>r.s===s);
-    return `<div class="sel-tag"><img src="${CDN}/champions/icons/set17/${s}.png?v=5" style="width:16px;height:16px;border-radius:2px;" onerror="this.style.opacity=.3"/>${ch?ch.n:s}<span class="sel-tag-x" onclick="toggleChamp('${s}')">✕</span></div>`;
+    return `<div class="sel-tag"><img src="${champUrl(s)}" style="width:16px;height:16px;border-radius:2px;" onerror="this.style.opacity=.3"/>${ch?ch.n:s}<span class="sel-tag-x" onclick="toggleChamp('${s}')">✕</span></div>`;
   }).join('');
 }
 
@@ -953,16 +1050,42 @@ document.getElementById('pickerOverlay').addEventListener('click',e=>{if(e.targe
 document.getElementById('importOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeImport();});
 window.addEventListener('beforeunload',saveNotes);
 
-// ── THEME TOGGLE ──────────────────────────────────────────────────────────────
-function toggleTheme(){
-  const isLight=document.body.classList.toggle('light');
-  document.getElementById('themeBtn').textContent=isLight?'🌙':'🌸';
-  try{localStorage.setItem('tft17_theme',isLight?'light':'dark');}catch(e){}
+// ── INIT (save override for cloud sync) ──────────────────────────────────────
+const _origSave = save;
+function save(){
+  try{localStorage.setItem('tft17',JSON.stringify(comps));}catch(e){}
+  cloudSave();
 }
-(function(){
-  try{if(localStorage.getItem('tft17_theme')==='light'){document.body.classList.add('light');document.getElementById('themeBtn').textContent='🌙';}}catch(e){}
-})();
+
+loadColorPrefs();
+cloudLoad();
 </script>
-<button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="Toggle light/dark mode">🌙</button>
+
+<!-- 🎨 Color panel button -->
+<button class="theme-btn" onclick="toggleColorPanel()" id="themeBtn" title="Customize colors">🎨</button>
+
+<!-- Color panel -->
+<div class="cpanel" id="colorPanel">
+  <div class="cpanel-head">Theme Colors <span class="cpanel-reset" onclick="resetColors()">Reset</span></div>
+  <div class="cpanel-presets" id="presetBtns"></div>
+  <div class="cpanel-section">Backgrounds</div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Main bg</span><input type="color" id="cp-bg" oninput="applyColor('--bg',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Panel bg</span><input type="color" id="cp-bg2" oninput="applyColor('--bg2',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Element bg</span><input type="color" id="cp-bg3" oninput="applyColor('--bg3',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Hover bg</span><input type="color" id="cp-bg4" oninput="applyColor('--bg4',this.value)"/></div>
+  <div class="cpanel-section">Text</div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Primary</span><input type="color" id="cp-text" oninput="applyColor('--text',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Secondary</span><input type="color" id="cp-text2" oninput="applyColor('--text2',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Muted</span><input type="color" id="cp-text3" oninput="applyColor('--text3',this.value)"/></div>
+  <div class="cpanel-section">Accents</div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Accent</span><input type="color" id="cp-accent" oninput="applyColor('--accent',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Accent light</span><input type="color" id="cp-accent2" oninput="applyColor('--accent2',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Gold</span><input type="color" id="cp-gold2" oninput="applyColor('--gold2',this.value)"/></div>
+  <div class="cpanel-section">Tier Labels</div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Tier S</span><input type="color" id="cp-tier-s" oninput="applyColor('--tier-s',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Tier A</span><input type="color" id="cp-tier-a" oninput="applyColor('--tier-a',this.value)"/></div>
+  <div class="cpanel-row"><span class="cpanel-lbl">Tier B</span><input type="color" id="cp-tier-b" oninput="applyColor('--tier-b',this.value)"/></div>
+</div>
+
 </body>
 </html>
