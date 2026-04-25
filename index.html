@@ -78,11 +78,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .body{display:flex;flex:1;overflow-x:auto;overflow-y:hidden;}
 
 /* ─── SIDEBAR ─── */
-.sidebar{width:180px;min-width:180px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;position:sticky;left:0;z-index:10;}
-
-@media(max-width:600px){
-  .sidebar{position:relative;} /* on very small screens let it scroll with content */
-}
+.sidebar{width:180px;min-width:180px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
 .sb-head{padding:8px 10px 4px;font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;}
 .sb-item{display:flex;align-items:center;gap:7px;padding:6px 8px;cursor:pointer;border-left:2px solid transparent;position:relative;}
 .sb-item:hover{background:var(--bg3);}
@@ -413,7 +409,7 @@ const BADGES=['BRONZE','SILVER','GOLD','ORANGE'];
 // After running download_tft_assets.py and pushing, set this to your repo:
 //   https://raw.githubusercontent.com/YOUR_USERNAME/tft-assets/main
 // Until then it falls back to Mobalytics (works locally, blocked on GitHub Pages).
-const GITHUB_ASSETS = 'REPLACE_WITH_YOUR_GITHUB_ASSETS_URL';
+const GITHUB_ASSETS = 'https://raw.githubusercontent.com/01sebakan/tft-assets/main';
 const _USING_GH = GITHUB_ASSETS !== 'REPLACE_WITH_YOUR_GITHUB_ASSETS_URL';
 
 // These keep all existing URL-building code working unchanged:
