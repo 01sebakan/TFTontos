@@ -75,10 +75,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .btn-import{background:var(--accent);color:#fff;border:none;border-radius:5px;padding:5px 12px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
 .btn-import:hover{background:#2563eb;}
 
-.body{display:flex;flex:1;overflow:hidden;}
+.body{display:flex;flex:1;overflow-x:auto;overflow-y:hidden;}
 
 /* ─── SIDEBAR ─── */
-.sidebar{width:180px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+.sidebar{width:180px;min-width:180px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;position:sticky;left:0;z-index:10;}
+
+@media(max-width:600px){
+  .sidebar{position:relative;} /* on very small screens let it scroll with content */
+}
 .sb-head{padding:8px 10px 4px;font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;}
 .sb-item{display:flex;align-items:center;gap:7px;padding:6px 8px;cursor:pointer;border-left:2px solid transparent;position:relative;}
 .sb-item:hover{background:var(--bg3);}
@@ -409,7 +413,7 @@ const BADGES=['BRONZE','SILVER','GOLD','ORANGE'];
 // After running download_tft_assets.py and pushing, set this to your repo:
 //   https://raw.githubusercontent.com/YOUR_USERNAME/tft-assets/main
 // Until then it falls back to Mobalytics (works locally, blocked on GitHub Pages).
-const GITHUB_ASSETS = 'https://raw.githubusercontent.com/01sebakan/tft-assets/main';
+const GITHUB_ASSETS = 'REPLACE_WITH_YOUR_GITHUB_ASSETS_URL';
 const _USING_GH = GITHUB_ASSETS !== 'REPLACE_WITH_YOUR_GITHUB_ASSETS_URL';
 
 // These keep all existing URL-building code working unchanged:
@@ -417,6 +421,15 @@ const CDN   = _USING_GH ? GITHUB_ASSETS + '/_mob' : 'https://cdn.mobalytics.gg/a
 const ICONS = 'https://cdn.mobalytics.gg/assets/common/icons'; // SVG icons — not blocked
 
 // Champion/item image helpers — resolve from GitHub assets when available
+// Convert github.com/user/repo/blob/... URLs to raw.githubusercontent.com so <img> tags load
+function toRawImg(url){
+  if(!url) return '';
+  return url
+    .replace('https://github.com/','https://raw.githubusercontent.com/')
+    .replace(/\/blob\//,'/')
+    .replace(/[?#].*$/,'');
+}
+
 function champUrl(slug){ return _USING_GH ? `${GITHUB_ASSETS}/champions/${slug}.png` : `${CDN}/champions/icons/set17/${slug}.png?v=5`; }
 function itemUrl(slug){  return _USING_GH ? `${GITHUB_ASSETS}/items/${slug}.png`     : `${CDN}/game-items/set17/${slug}.png?v=5`; }
 function badgeUrl(b){    return _USING_GH ? `${GITHUB_ASSETS}/badges/${b}.png`       : `${CDN}/synergies-badges/${b}.png`; }
@@ -509,7 +522,7 @@ function renderSidebar(){
   comps.forEach((c,i)=>{
     const el=document.createElement('div');
     el.className='sb-item'+(i===ai?' active':'');
-    el.innerHTML=`<img class="sb-thumb" src="${c.thumbImg||''}" onerror="this.style.opacity=.3"><div class="sb-info"><div class="sb-name">${c.title}</div><div class="sb-meta">Tier ${c.tier} · ${c.difficulty||'?'}</div></div><div class="sb-del" onclick="delComp(event,${i})">✕</div>`;
+    el.innerHTML=`<img class="sb-thumb" src="${toRawImg(c.thumbImg)||''}" onerror="this.style.opacity=.3"><div class="sb-info"><div class="sb-name">${c.title}</div><div class="sb-meta">Tier ${c.tier} · ${c.difficulty||'?'}</div></div><div class="sb-del" onclick="delComp(event,${i})">✕</div>`;
     el.addEventListener('click',()=>showComp(i));
     list.appendChild(el);
   });
@@ -1028,7 +1041,7 @@ function runMatching(){
   resultsEl.innerHTML = scored.map(r=>`
     <div class="result-card" onclick="jumpToComp(${r.idx})">
       <div class="result-head">
-        <img class="result-thumb" src="${r.comp.thumbImg||''}" onerror="this.style.opacity=.3"/>
+        <img class="result-thumb" src="${toRawImg(r.comp.thumbImg||'')}" onerror="this.style.opacity=.3"/>
         <div class="result-name">${r.comp.title}</div>
         <div class="result-score">${r.matchTags.length} match${r.matchTags.length!==1?'es':''}</div>
       </div>
