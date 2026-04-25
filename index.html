@@ -79,6 +79,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 
 /* ─── SIDEBAR ─── */
 .sidebar{width:180px;min-width:180px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+
+@media(max-width:768px){
+  body{height:auto;overflow:auto;}
+  .app{height:auto;min-height:100vh;}
+  .body{flex-direction:column;overflow:visible;}
+  .sidebar{width:100%;min-width:unset;max-height:none;overflow-y:visible;border-right:none;border-bottom:1px solid var(--border);}
+  .content{overflow-y:visible;}
+}
 .sb-head{padding:8px 10px 4px;font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;}
 .sb-item{display:flex;align-items:center;gap:7px;padding:6px 8px;cursor:pointer;border-left:2px solid transparent;position:relative;}
 .sb-item:hover{background:var(--bg3);}
