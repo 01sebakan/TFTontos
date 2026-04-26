@@ -389,9 +389,8 @@ async function loadLookup() {
     let mode = null;
     for (const line of lines) {
       if (line.includes('Augments (number')) { mode = 'augments'; continue; }
-      if (line.includes('Synergies (name')) { mode = 'synergies'; continue; }
+      if (line.includes('Synergies (name'))  { mode = 'synergies'; continue; }
       if (!mode) continue;
-      // Strip surrounding quotes if present
       const raw = (line.startsWith('"') && line.endsWith('"')) ? line.slice(1, -1) : line;
       const cols = raw.split('|');
       if (mode === 'augments') {
@@ -400,13 +399,7 @@ async function loadLookup() {
         const slug = cols[3].trim();
         const name = cols[1].trim();
         const desc = cols[4].trim();
-        if (slug) {
-          AUGMENT_LOOKUP[slug] = {
-            name,
-            desc,
-            imgUrl: `https://cdn.mobalytics.gg/assets/tft/images/hextech-augments/set17/${slug}.webp?v=5`
-          };
-        }
+        if (slug) AUGMENT_LOOKUP[slug] = { name, desc };
       } else if (mode === 'synergies') {
         // cols: [name, slug, effect, units1, bonus1, units2, bonus2, ...]
         if (cols.length < 2) continue;
@@ -612,16 +605,16 @@ function renderComp(d){
     </div>`;
   }).join('');
 
-  // augments — resolved from AUGMENT_LOOKUP by slug
+  // augments — name+desc from CSV lookup, imgUrl from JSON only
   const augs=['tier1','tier2','tier3'].map((t,i)=>`
     <div class="aug-row aug-${['bronze','silver','gold'][i]}">
       <div class="aug-lbl">${['Bronze','Silver','Gold'][i]}</div>
       <div class="aug-icons">
         ${(d.augments&&d.augments[t]||[]).map(a=>{
           const lk = AUGMENT_LOOKUP[a.slug] || {};
-          const name = lk.name || a.name || a.slug || '';
-          const desc = lk.desc || a.desc || '';
-          const imgUrl = lk.imgUrl || a.imgUrl || '';
+          const name    = lk.name || a.name || a.slug || '';
+          const desc    = lk.desc || a.desc || '';
+          const imgUrl  = a.imgUrl || `https://cdn.mobalytics.gg/assets/tft/images/hextech-augments/set17/${a.slug}.webp?v=5`;
           return `<div class="aug-icon" data-tt="augment" data-name="${name}" data-img="${imgUrl}" data-desc="${desc.replace(/"/g,'&quot;')}">
             <img src="${imgUrl}" onerror="this.style.opacity=.4"/>
           </div>`;
