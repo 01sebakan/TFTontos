@@ -373,36 +373,101 @@ body.light .sel-tag{background:rgba(147,51,234,.12);border-color:rgba(147,51,234
 </div>
 
 <script>
-// ── TRAIT DB (Set 17 — verified) ─────────────────────────────────────────────
-const TRAITS={
-  'dark-lady':   {innate:'Allies take 5% less damage from abilities. 10% while Morgana is in Dark Form.',levels:[1],effects:{1:'5% reduced ability damage (10% in Dark Form)'}},
-  'fateweaver':  {innate:'Innate Precision: ability damage can critically strike. Each Precision grants +10% Crit Damage.',levels:[2,4,6],effects:{2:'Chance effects on abilities are Lucky',4:'+20% Crit Chance & +20% Crit Damage. Crits are Lucky',6:'Further Crit bonuses'}},
-  'stargazer':   {innate:'Chart a new constellation each game. Stargazers in empowered hexes gain bonuses. More hexes at each level.',levels:[1,3,5],effects:{1:'1 empowered hex',3:'3 empowered hexes',5:'5 empowered hexes'}},
-  'bastion':     {innate:'Team gains 15 Armor & Magic Resist. Bastions gain more. Doubles in first 10 seconds of combat.',levels:[2,4,6],effects:{2:'Team +15 Armor/MR (Bastions +more, doubled early)',4:'Team +25 Armor/MR',6:'Team +35 Armor/MR'}},
-  'nova':        {innate:'6 seconds into combat, N.O.V.A. grant a power surge to allies.',levels:[2,5],effects:{2:'Power surge (Aatrox: Shred+Sunder | Caitlyn: +20%AS | Kindred: tank shield)',5:'Gain Striker selector — chosen N.O.V.A. activates their Strike during surge'}},
-  'timebreaker': {innate:'Lose → gain free rerolls. Win → store XP in Temporal Core.',levels:[2,4],effects:{2:'Free reroll on loss / XP on win',4:'+ All allies gain 25% Attack Speed'}},
-  'rogue':       {innate:'Rogues gain AD & AP. Below 50% HP: slip into shadows, enemies retarget to another unit.',levels:[2,4],effects:{2:'AD & AP boost + shadow dodge once per combat',4:'More AD/AP + longer shadow duration'}},
-  'redeemer':    {innate:'Heal 15% of player damage from winning combats. Fiora always wins 1v1 duels.',levels:[1],effects:{1:'Heal 15% of player damage won. Fiora wins 1v1.'}},
-  'shepherd':    {innate:'Summon Bia & Bayin. Their power increases with total Shepherd star levels on your board.',levels:[1,3,5],effects:{1:'Summon Bia & Bayin at weak power',3:'Bia & Bayin become stronger',5:'Bia & Bayin at maximum power'}},
-  'psionic':     {innate:'Gain Psionic items that can be equipped to any ally.',levels:[2,4],effects:{2:'Unlock 1 Psionic item slot',4:'Unlock 2 Psionic item slots'}},
-  'voyager':     {innate:'Combat Start: Tanks & Fighters get a Shield for 15s. Other allies get Damage Amp. Voyagers get double both.',levels:[2,4,6],effects:{2:'Shield + Damage Amp (Voyagers get 2x)',4:'Stronger Shield + Damage Amp',6:'Maximum Shield + Damage Amp'}},
-  'dark-star':   {innate:'Dark Stars create Black Holes that consume enemies at low HP.',levels:[2,4,6,9],effects:{2:'Black Holes execute at 8% max HP',4:'+ Dark Stars gain 40% AD & AP',6:'Strongest goes Supermassive: +85% effectiveness + 2 minor Black Holes',9:'All Dark Stars Supermassive. At Lv10: CONSUME EVERYONE.'}},
-  'channeler':   {innate:'Conduits gain 20% additional Mana from all sources. Team gains Mana Regen (more for Conduits).',levels:[2,4],effects:{2:'Team Mana Regen',4:'Increased Mana Regen for all allies'}},
-  'vanguard':    {innate:'Vanguards gain 5% Durability while Shielded. At combat start and 50% HP: gain max Health Shield for 10s.',levels:[2,4,6],effects:{2:'Shield on combat start & at 50% HP',4:'Larger Shield',6:'Maximum Shield'}},
-  'replicator':  {innate:'Replicator abilities trigger a second time at reduced effectiveness.',levels:[2,4],effects:{2:'Abilities fire twice at reduced power',4:'Second cast at 65% effectiveness'}},
-  'space-groove':{innate:'Groovians enter The Groove: gain Attack Speed & max Health Regen per Groovian on team.',levels:[1,3,5],effects:{1:'The Groove unlocked',3:'All Groovians start in Groove; each second grants +5% stacking AD & AP',5:'All Groove effects +5% stronger'}},
-  'anima':       {innate:'Lose combat → gain 20 Tech (+5× loss streak). At 100 Tech, prototype Anima Weapons.',levels:[3,6],effects:{3:'Start Researching! Weapons available to take',6:'After winning combat, gain loot too!'}},
-  'meeple':      {innate:'Meeple attract Meeps that empower Meeple abilities. Also gain bonus Health.',levels:[3,5,7,10],effects:{3:'2 Potential, +100 HP',5:'3 Potential, +400 HP',7:'4 Potential, +400 HP + Cloning Slot on bench',10:'6 Potential, +500 HP. SUMMON THE FOUR MEEPLORDS!'}},
-  'brawler':     {innate:'Team gains 5% bonus Health. Brawlers gain more.',levels:[2,4,6],effects:{2:'Team +5% HP (Brawlers more)',4:'Team +8% HP',6:'Team +12% HP'}},
-  'sniper':      {innate:'Snipers gain Damage Amp, increased against farther targets.',levels:[2,4],effects:{2:'Damage Amp based on distance',4:'Greatly increased Damage Amp at range'}},
-  'marauder':    {innate:'Team 5% Omnivamp. Marauders: more Omnivamp & AD, overheal converts to Shield (max 25% HP).',levels:[2,4,6],effects:{2:'Team 5% Omnivamp',4:'Marauders: more Omnivamp & AD',6:'Overheal → Shield up to 25% max HP'}},
-  'bilgewater':  {innate:'Bilgewater units accumulate Silver Serpents that unlock bonuses.',levels:[3,5,7],effects:{3:'Rewards unlocked',5:'Enhanced rewards',7:'Maximum rewards'}},
-  'mecha':       {innate:'Innate: Mecha transform to upgrade ability + 50% HP. Transformed counts twice for trait.',levels:[3,4,6],effects:{3:'Energy Cells: Mechas +20% AD & AP',4:'Overclocked: Mechas +35% AD & AP',6:'Precision Engineering: +1 max team size'}},
-  'primordian':  {innate:'Dealing damage spawns Swarmlings based on unique Primordian star levels.',levels:[2,3],effects:{2:'Spawn Swarmlings on damage',3:'+45% more Swarmlings. After each combat, gain random 1 or 2-cost champion'}},
-  'arbiter':     {innate:'Scribe a unique divine law: choose a cause and an effect that applies to Arbiters.',levels:[2,3],effects:{2:'Choose your law (cause + effect)',3:'Law effects are stronger'}},
-  'challenger':  {innate:'Team +10% Attack Speed. Challengers dash to new target on kill and gain +50% AS bonus for 2.5s.',levels:[2,4,6],effects:{2:'Team +10% AS + dash on kill',4:'Increased AS bonus on kill',6:'Maximum AS bonus'}},
-};
+// ── LOOKUP DATA (loaded from GitHub CSV) ─────────────────────────────────────
+let TRAITS = {};
+let AUGMENT_LOOKUP = {};
 const BADGES=['BRONZE','SILVER','GOLD','ORANGE'];
+
+const CSV_URL = 'https://raw.githubusercontent.com/01sebakan/tft-assets/main/Augments%20and%20Synergies.csv';
+
+async function loadLookup() {
+  try {
+    const res = await fetch(CSV_URL);
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+    let mode = null;
+    for (const line of lines) {
+      // Detect section headers
+      if (line.includes('Augments (number,name,tier,slug,description)')) { mode = 'augments'; continue; }
+      if (line.includes('Synergies (name,slug,effect,')) { mode = 'synergies'; continue; }
+      if (!mode) continue;
+
+      // Strip surrounding quotes if present (each row is wrapped in "...")
+      const raw = line.startsWith('"') && line.endsWith('"') ? line.slice(1, -1) : line;
+
+      if (mode === 'augments') {
+        // Format: number,name,tier,slug,description (description may contain commas)
+        const firstComma = raw.indexOf(',');
+        const afterNum = raw.slice(firstComma + 1);
+        const secondComma = afterNum.indexOf(',');
+        const name = afterNum.slice(0, secondComma);
+        const afterName = afterNum.slice(secondComma + 1);
+        const thirdComma = afterName.indexOf(',');
+        // tier = afterName.slice(0, thirdComma) — not needed here
+        const afterTier = afterName.slice(thirdComma + 1);
+        const fourthComma = afterTier.indexOf(',');
+        const slug = afterTier.slice(0, fourthComma);
+        const desc = afterTier.slice(fourthComma + 1);
+        if (slug) {
+          AUGMENT_LOOKUP[slug] = {
+            name,
+            desc,
+            imgUrl: `https://cdn.mobalytics.gg/assets/tft/images/hextech-augments/set17/${slug}.webp?v=5`
+          };
+        }
+
+      } else if (mode === 'synergies') {
+        // Format: name,slug,effect,units1,bonus1,units2,bonus2,...
+        // Split carefully — effect may contain commas, but bonus fields are short
+        // We split all columns and reassemble from known structure
+        const cols = splitCSVRow(raw);
+        if (cols.length < 2) continue;
+        const name = cols[0];
+        const slug = cols[1];
+        const effect = cols[2] || '';
+        // Parse tier pairs: (units, bonus) starting at index 3
+        const levels = [];
+        const effects = {};
+        for (let i = 3; i < cols.length - 1; i += 2) {
+          const units = cols[i];
+          const bonus = cols[i + 1];
+          if (units && units.trim() !== '') {
+            const n = parseInt(units.trim());
+            if (!isNaN(n)) {
+              levels.push(n);
+              effects[n] = bonus ? bonus.trim() : '';
+            }
+          }
+        }
+        if (slug) {
+          TRAITS[slug] = {
+            innate: effect,
+            levels,
+            effects
+          };
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Could not load lookup CSV:', e);
+  }
+}
+
+// Split a CSV row respecting quoted fields
+function splitCSVRow(row) {
+  const cols = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  cols.push(cur);
+  return cols;
+}
 
 // ── ASSET HOST ────────────────────────────────────────────────────────────────
 // Images are served from a GitHub repo that doesn't block hotlinking.
@@ -587,15 +652,20 @@ function renderComp(d){
     </div>`;
   }).join('');
 
-  // augments
+  // augments — resolve name/desc/imgUrl from AUGMENT_LOOKUP if not in JSON
   const augs=['tier1','tier2','tier3'].map((t,i)=>`
     <div class="aug-row aug-${['bronze','silver','gold'][i]}">
       <div class="aug-lbl">${['Bronze','Silver','Gold'][i]}</div>
       <div class="aug-icons">
-        ${(d.augments&&d.augments[t]||[]).map(a=>`
-          <div class="aug-icon" data-tt="augment" data-name="${a.name}" data-img="${a.imgUrl}" data-desc="${(a.desc||'').replace(/"/g,'&quot;')}">
-            <img src="${a.imgUrl}" onerror="this.style.opacity=.4"/>
-          </div>`).join('')}
+        ${(d.augments&&d.augments[t]||[]).map(a=>{
+          const lk = AUGMENT_LOOKUP[a.slug] || {};
+          const name = a.name || lk.name || a.slug;
+          const desc = a.desc || lk.desc || '';
+          const imgUrl = a.imgUrl || lk.imgUrl || '';
+          return `<div class="aug-icon" data-tt="augment" data-name="${name}" data-img="${imgUrl}" data-desc="${desc.replace(/"/g,'&quot;')}">
+            <img src="${imgUrl}" onerror="this.style.opacity=.4"/>
+          </div>`;
+        }).join('')}
       </div>
     </div>`).join('');
 
@@ -815,9 +885,9 @@ function attachTT(){
         const info=TRAITS[slug];
         if(info){
           const effects=info.effects||{};
-          const activeN=info.levels.filter(n=>count>=n).pop();
+          const activeN=info.levels&&info.levels.filter(n=>count>=n).pop();
           if(info.innate)html+=`<div style="font-size:9px;color:var(--text2);margin-bottom:5px;line-height:1.5;border-bottom:1px solid var(--border);padding-bottom:4px;">${info.innate}</div>`;
-          html+=info.levels.map((n,i)=>{
+          if(info.levels&&info.levels.length){ html+=info.levels.map((n,i)=>{
             const isCurr=n===activeN,isOn=count>=n,bn=BADGES[Math.min(i,BADGES.length-1)];
             return`<div class="tt-lv${isCurr?' on':''}">
               <img class="tt-badge" src="${badgeUrl(bn)}" onerror="this.style.opacity=.3"/>
@@ -825,7 +895,7 @@ function attachTT(){
               <div style="flex:1;font-size:9px;color:${isOn?'var(--text)':'var(--text3)'};line-height:1.4;">${effects[n]||''}</div>
               ${isCurr?'<span class="tt-tag">ACTIVE</span>':''}
             </div>`;
-          }).join('');
+          }).join(''); }
         }
       }
       if(type==='augment'){const desc=el.dataset.desc||'';if(desc)html=`<div style="font-size:10px;color:var(--text2);line-height:1.6;">${desc}</div>`;}
@@ -1058,6 +1128,9 @@ if(comps.length){ai=0;renderComp(comps[0]);}
 document.getElementById('pickerOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closePicker();});
 document.getElementById('importOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeImport();});
 window.addEventListener('beforeunload',saveNotes);
+
+// Load CSV lookup then re-render active comp so tooltips use fresh data
+loadLookup().then(()=>{ if(comps.length && ai !== null) renderComp(comps[ai]); });
 
 // ── INIT (save override for cloud sync) ──────────────────────────────────────
 const _origSave = save;
