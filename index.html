@@ -373,10 +373,11 @@ body.light .sel-tag{background:rgba(147,51,234,.12);border-color:rgba(147,51,234
 </div>
 
 <script>
+// ── TRAIT DB (Set 17 — verified) ─────────────────────────────────────────────
 // ── LOOKUP DATA (loaded from GitHub CSV) ─────────────────────────────────────
 let TRAITS = {};
 let AUGMENT_LOOKUP = {};
-const BADGES=['BRONZE','SILVER','GOLD','ORANGE'];
+const BADGES = ['BRONZE','SILVER','GOLD','ORANGE'];
 
 const CSV_URL = 'https://raw.githubusercontent.com/01sebakan/tft-assets/main/Augments%20and%20Synergies.csv';
 
@@ -385,30 +386,20 @@ async function loadLookup() {
     const res = await fetch(CSV_URL);
     const text = await res.text();
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-
     let mode = null;
     for (const line of lines) {
-      // Detect section headers
-      if (line.includes('Augments (number,name,tier,slug,description)')) { mode = 'augments'; continue; }
-      if (line.includes('Synergies (name,slug,effect,')) { mode = 'synergies'; continue; }
+      if (line.includes('Augments (number')) { mode = 'augments'; continue; }
+      if (line.includes('Synergies (name')) { mode = 'synergies'; continue; }
       if (!mode) continue;
-
-      // Strip surrounding quotes if present (each row is wrapped in "...")
-      const raw = line.startsWith('"') && line.endsWith('"') ? line.slice(1, -1) : line;
-
+      // Strip surrounding quotes if present
+      const raw = (line.startsWith('"') && line.endsWith('"')) ? line.slice(1, -1) : line;
+      const cols = raw.split('|');
       if (mode === 'augments') {
-        // Format: number,name,tier,slug,description (description may contain commas)
-        const firstComma = raw.indexOf(',');
-        const afterNum = raw.slice(firstComma + 1);
-        const secondComma = afterNum.indexOf(',');
-        const name = afterNum.slice(0, secondComma);
-        const afterName = afterNum.slice(secondComma + 1);
-        const thirdComma = afterName.indexOf(',');
-        // tier = afterName.slice(0, thirdComma) — not needed here
-        const afterTier = afterName.slice(thirdComma + 1);
-        const fourthComma = afterTier.indexOf(',');
-        const slug = afterTier.slice(0, fourthComma);
-        const desc = afterTier.slice(fourthComma + 1);
+        // cols: [number, name, tier, slug, description]
+        if (cols.length < 5) continue;
+        const slug = cols[3].trim();
+        const name = cols[1].trim();
+        const desc = cols[4].trim();
         if (slug) {
           AUGMENT_LOOKUP[slug] = {
             name,
@@ -416,57 +407,26 @@ async function loadLookup() {
             imgUrl: `https://cdn.mobalytics.gg/assets/tft/images/hextech-augments/set17/${slug}.webp?v=5`
           };
         }
-
       } else if (mode === 'synergies') {
-        // Format: name,slug,effect,units1,bonus1,units2,bonus2,...
-        // Split carefully — effect may contain commas, but bonus fields are short
-        // We split all columns and reassemble from known structure
-        const cols = splitCSVRow(raw);
+        // cols: [name, slug, effect, units1, bonus1, units2, bonus2, ...]
         if (cols.length < 2) continue;
-        const name = cols[0];
-        const slug = cols[1];
-        const effect = cols[2] || '';
-        // Parse tier pairs: (units, bonus) starting at index 3
+        const name = cols[0].trim();
+        const slug = cols[1].trim();
+        const effect = (cols[2] || '').trim();
         const levels = [];
         const effects = {};
         for (let i = 3; i < cols.length - 1; i += 2) {
-          const units = cols[i];
-          const bonus = cols[i + 1];
-          if (units && units.trim() !== '') {
-            const n = parseInt(units.trim());
-            if (!isNaN(n)) {
-              levels.push(n);
-              effects[n] = bonus ? bonus.trim() : '';
-            }
+          const units = (cols[i] || '').trim();
+          const bonus = (cols[i + 1] || '').trim();
+          if (units !== '') {
+            const n = parseInt(units);
+            if (!isNaN(n)) { levels.push(n); effects[n] = bonus; }
           }
         }
-        if (slug) {
-          TRAITS[slug] = {
-            innate: effect,
-            levels,
-            effects
-          };
-        }
+        if (slug) TRAITS[slug] = { innate: effect, levels, effects };
       }
     }
-  } catch(e) {
-    console.warn('Could not load lookup CSV:', e);
-  }
-}
-
-// Split a CSV row respecting quoted fields
-function splitCSVRow(row) {
-  const cols = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (ch === '"') { inQ = !inQ; }
-    else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-    else { cur += ch; }
-  }
-  cols.push(cur);
-  return cols;
+  } catch(e) { console.warn('Could not load lookup CSV:', e); }
 }
 
 // ── ASSET HOST ────────────────────────────────────────────────────────────────
@@ -652,16 +612,16 @@ function renderComp(d){
     </div>`;
   }).join('');
 
-  // augments — resolve name/desc/imgUrl from AUGMENT_LOOKUP if not in JSON
+  // augments — resolved from AUGMENT_LOOKUP by slug
   const augs=['tier1','tier2','tier3'].map((t,i)=>`
     <div class="aug-row aug-${['bronze','silver','gold'][i]}">
       <div class="aug-lbl">${['Bronze','Silver','Gold'][i]}</div>
       <div class="aug-icons">
         ${(d.augments&&d.augments[t]||[]).map(a=>{
           const lk = AUGMENT_LOOKUP[a.slug] || {};
-          const name = a.name || lk.name || a.slug;
-          const desc = a.desc || lk.desc || '';
-          const imgUrl = a.imgUrl || lk.imgUrl || '';
+          const name = lk.name || a.name || a.slug || '';
+          const desc = lk.desc || a.desc || '';
+          const imgUrl = lk.imgUrl || a.imgUrl || '';
           return `<div class="aug-icon" data-tt="augment" data-name="${name}" data-img="${imgUrl}" data-desc="${desc.replace(/"/g,'&quot;')}">
             <img src="${imgUrl}" onerror="this.style.opacity=.4"/>
           </div>`;
@@ -887,7 +847,7 @@ function attachTT(){
           const effects=info.effects||{};
           const activeN=info.levels&&info.levels.filter(n=>count>=n).pop();
           if(info.innate)html+=`<div style="font-size:9px;color:var(--text2);margin-bottom:5px;line-height:1.5;border-bottom:1px solid var(--border);padding-bottom:4px;">${info.innate}</div>`;
-          if(info.levels&&info.levels.length){ html+=info.levels.map((n,i)=>{
+          if(info.levels&&info.levels.length){html+=info.levels.map((n,i)=>{
             const isCurr=n===activeN,isOn=count>=n,bn=BADGES[Math.min(i,BADGES.length-1)];
             return`<div class="tt-lv${isCurr?' on':''}">
               <img class="tt-badge" src="${badgeUrl(bn)}" onerror="this.style.opacity=.3"/>
@@ -895,7 +855,7 @@ function attachTT(){
               <div style="flex:1;font-size:9px;color:${isOn?'var(--text)':'var(--text3)'};line-height:1.4;">${effects[n]||''}</div>
               ${isCurr?'<span class="tt-tag">ACTIVE</span>':''}
             </div>`;
-          }).join(''); }
+          }).join('');}
         }
       }
       if(type==='augment'){const desc=el.dataset.desc||'';if(desc)html=`<div style="font-size:10px;color:var(--text2);line-height:1.6;">${desc}</div>`;}
